@@ -1,7 +1,7 @@
 import difference from 'lodash.difference'
 import every from 'lodash.every'
 import get from 'lodash.get'
-import shallowEqual from 'is-equal-shallow'
+import deepEqual from 'deep-equal'
 
 function getDataPropertyKeys(obj) {
     const enumerableKeys = Object.keys(obj)
@@ -16,21 +16,37 @@ function areCustomDataEqual(prevResource, nextResource) {
     const prevExtraProps = difference(prevDataKeys, keysWithCustomComparators)
     const nextExtraProps = difference(nextDataKeys, keysWithCustomComparators)
     if (prevExtraProps.length !== nextExtraProps.length) {
+        console.log(
+            'extraProps length difference',
+            prevExtraProps,
+            nextExtraProps,
+        )
         return false
     }
     return every(nextExtraProps, extraPropKey => {
-        return shallowEqual(
+        const result = deepEqual(
             get(prevResource, extraPropKey),
             get(nextResource, extraPropKey),
         )
+        if (!result) {
+            console.log(
+                'extraProps value difference',
+                get(prevResource, extraPropKey),
+                get(nextResource, extraPropKey),
+            )
+        }
+        return result
     })
 }
 
 function areRequestsEqual(prevRequests, nextRequests) {
-    return (
+    const result =
         get(prevRequests, 'status') === get(nextRequests, 'status') &&
         get(prevRequests, 'fetchedAt') === get(nextRequests, 'fetchedAt')
-    )
+    if (!result) {
+        console.log('request difference', prevRequests, nextRequests)
+    }
+    return result
 }
 
 function flattenEntities(entitiesTree) {
@@ -53,6 +69,11 @@ function areEntitiesEqual(prevEntity, nextEntity) {
     const prevEntityKeys = Object.keys(prevEntity).sort()
     const nextEntityKeys = Object.keys(nextEntity).sort()
     if (prevEntityKeys.length !== nextEntityKeys.length) {
+        console.log(
+            'entityKeys length difference',
+            prevEntityKeys,
+            nextEntityKeys,
+        )
         return false
     }
 
@@ -62,12 +83,21 @@ function areEntitiesEqual(prevEntity, nextEntity) {
         if (get(nextValue, '_ref')) {
             return true
         }
-        return shallowEqual(prevValue, nextValue)
+        const result = deepEqual(prevValue, nextValue)
+        if (!result) {
+            console.log('entities value difference', prevValue, nextValue)
+        }
+        return result
     })
 }
 
 function areEntityListsEqual(prevFlatEntities, nextFlatEntities) {
     if (prevFlatEntities.length !== nextFlatEntities.length) {
+        console.log(
+            'flat entities length difference',
+            prevFlatEntities,
+            nextFlatEntities,
+        )
         return false
     }
 
@@ -82,20 +112,18 @@ function areEntityListsEqual(prevFlatEntities, nextFlatEntities) {
     return true
 }
 
-export function areStatePropsEqual(nextStateProps, stateProps) {
+export function areMergedPropsEqual(nextProps, props) {
     const keysToIgnore = ['_initializeDataKey', 'updateEntity', '_declarations']
-    const prevNionKeys = difference(Object.keys(stateProps.nion), keysToIgnore)
-    const nextNionKeys = difference(
-        Object.keys(nextStateProps.nion),
-        keysToIgnore,
-    )
+    const prevNionKeys = difference(Object.keys(props.nion), keysToIgnore)
+    const nextNionKeys = difference(Object.keys(nextProps.nion), keysToIgnore)
     if (prevNionKeys.length !== nextNionKeys.length) {
+        console.log('nion keys length difference', prevNionKeys, nextNionKeys)
         return false
     }
     return every(nextNionKeys, propKey => {
         // Compare this particular nion's object and request state
-        const prevResource = stateProps.nion[propKey]
-        const nextResource = nextStateProps.nion[propKey]
+        const prevResource = props.nion[propKey]
+        const nextResource = nextProps.nion[propKey]
 
         // Compare all extra properties, except those which have custom comparators
         const customDataEqualityResult = areCustomDataEqual(
@@ -103,6 +131,7 @@ export function areStatePropsEqual(nextStateProps, stateProps) {
             nextResource,
         )
         if (!customDataEqualityResult) {
+            console.log('custom data unequal')
             return false
         }
 
@@ -112,6 +141,7 @@ export function areStatePropsEqual(nextStateProps, stateProps) {
             get(nextResource, 'request'),
         )
         if (!requestsEqualityResult) {
+            console.log('requests unequal')
             return false
         }
 
@@ -122,6 +152,10 @@ export function areStatePropsEqual(nextStateProps, stateProps) {
         const nextFlatEntities = flattenEntities(
             get(nextResource, 'allObjects'),
         )
-        return areEntityListsEqual(prevFlatEntities, nextFlatEntities)
+        const result = areEntityListsEqual(prevFlatEntities, nextFlatEntities)
+        if (!result) {
+            console.log('entity lists unequal')
+        }
+        return result
     })
 }

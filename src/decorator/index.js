@@ -7,7 +7,7 @@ import set from 'lodash.set'
 import actions from '../actions'
 import { makeRef } from '../transforms'
 import ApiManager from '../api'
-import { areStatePropsEqual } from './should-rerender'
+import { areMergedPropsEqual } from './should-rerender'
 
 import { connect } from 'react-redux'
 
@@ -465,7 +465,16 @@ const nion = (declarations = {}, ...rest) => WrappedComponent => {
         mapDispatchToProps,
         mergeProps,
         {
-            areStatePropsEqual,
+            areMergedPropsEqual: (nextProps, props) => {
+                const result = areMergedPropsEqual(nextProps, props)
+                if (!result) {
+                    console.log(
+                        'different merged props',
+                        getDisplayName(WrappedComponent),
+                    )
+                }
+                return result
+            },
         },
     )(WithNion)
     // Take all static properties on the inner Wrapped component and put them on our now-connected
